@@ -1,4 +1,4 @@
 # USBTest
 This repository for Windows WDM driver Test Tools:
 - Testing Consol;
-- USB WDM driver (spesialied for testing USB devices)
+- USB WDM driver (specialized for testing USB devices)
