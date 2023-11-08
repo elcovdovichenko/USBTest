@@ -1,0 +1,146 @@
+unit IOCTL;
+
+interface
+
+uses
+  Windows, Messages, SysUtils;
+
+const
+   fIsLoaded : Boolean = FALSE;
+   codeExit : Integer = 0;
+
+function DeviceOpen(DeviceName:String) : Integer;
+function DeviceClose : Boolean;
+function DIOCFunc1(var h1pipe : DWord; var h2pipe : DWord;  var h3pipe : DWord) : Integer;
+function DIOCFunc2(var data; len : DWord; var count : DWord) : Integer;
+function DIOCFunc3(var data; len : DWord; var count : DWord) : Integer;
+function DIOCFunc4(var data; len : DWord; var count : DWord) : Integer;
+function StrToHexAddr(AddrStr:String) : DWord;
+
+implementation
+
+var
+   hDevice : THandle;
+   cbBytesReturned : DWord;
+   Info : Array[0..9]Of DWord;
+
+
+
+function DeviceOpen(DeviceName:String) : Integer;
+begin
+   Result:=0;
+   fIsLoaded:=False;
+
+   hDevice:=CreateFile(PChar('\\.\'+DeviceName), 0, 0, NIL, OPEN_EXISTING, 0, 0);
+
+   if hDevice = INVALID_HANDLE_VALUE
+   then begin
+        Result:=GetLastError;
+        OutputDebugString(PChar('Error on open the device: '+IntToStr(Result)+#13#10));
+        end
+   else begin
+        OutputDebugString('Device is Opened'#13#10);
+        fIsLoaded:=True;
+        end;
+end;
+
+function DeviceClose : Boolean;
+begin
+
+  Result:=False;
+
+  if not fIsLoaded
+  then Exit;
+
+  OutputDebugString('Device is Closed'#13#10);
+  CloseHandle(hDevice);
+
+  fIsLoaded:=False;
+  Result:=True;
+
+end;
+
+function DIOCFunc1(var h1pipe : DWord; var h2pipe : DWord; var h3pipe : DWord) : Integer;
+begin
+
+  Result:=-1;
+
+  if not fIsLoaded
+  then Exit;
+
+  if DeviceIOControl(hDevice, $222000, NIL, 0,
+       @Info, sizeof(Info), cbBytesReturned, NIL)
+  then begin
+       h1pipe:=Info[0];
+       h2pipe:=Info[1];
+       h3pipe:=Info[2];
+       Result:=0;
+       end
+  else Result:=-2;
+
+end;
+
+function DIOCFunc2(var data; len : DWord; var count : DWord) : Integer;
+begin
+
+  Result:=-1;
+
+  if not fIsLoaded
+  then Exit;
+
+  if DeviceIOControl(hDevice, $222004, {NIL, 0,} @data, len, NIL, 0, count, NIL)
+  then Result:=0
+  else Result:=-2;
+
+end;
+
+function DIOCFunc3(var data; len : DWord; var count : DWord) : Integer;
+begin
+
+  Result:=-1;
+
+  if not fIsLoaded
+  then Exit;
+
+  if DeviceIOControl(hDevice, $222008, NIL, 0, @data, len, {NIL, 0,} count, NIL)
+  then Result:=0
+  else Result:=-2;
+
+end;
+
+function DIOCFunc4(var data; len : DWord; var count : DWord) : Integer;
+begin
+
+  Result:=-1;
+
+  if not fIsLoaded
+  then Exit;
+
+  if DeviceIOControl(hDevice, $22200C, NIL, 0, {@data, len,} NIL, 0, count, NIL)
+  then Result:=0
+  else Result:=-2;
+
+end;
+
+function StrToHexAddr(AddrStr:String) : DWord;
+var i:Integer; cif:DWord; ch:Char;
+begin
+result:=0;
+AddrStr:=UpperCase(AddrStr);
+cif:=0;
+for i:=1 to Length(AddrStr)
+do begin
+   ch:=AddrStr[i];
+   case ch of
+     '0'..'9': cif:=(Ord(ch)-Ord('0'));
+     'A'..'F': cif:=(Ord(ch)-Ord('A')+10);
+     else begin
+          result:=$FFFFFFFF;
+          exit;
+          end;
+     end;
+   result:=result*16+cif;
+   end;
+end;
+
+end.
